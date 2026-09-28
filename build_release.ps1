@@ -17,7 +17,7 @@ if (-not $line -or $line.Matches[0].Groups[1].Value -ne $Version) { throw "APP_V
 
 Write-Host "== QuickSub (PyInstaller)"
 $data = @("icon.ico", "icon-48.png", "icon-96.png") | ForEach-Object { "--add-data=$Root\$_;." }
-$collect = @("faster_whisper", "ctranslate2", "onnxruntime", "av", "tokenizers", "opencc", "tkinterdnd2") | ForEach-Object { "--collect-all=$_" }
+$collect = @("faster_whisper", "ctranslate2", "onnxruntime", "av", "tokenizers", "opencc", "tkinterdnd2", "soundcard") | ForEach-Object { "--collect-all=$_" }
 & $Py -m PyInstaller --noconfirm --onedir --windowed --name QuickSub --icon "$Root\icon.ico" @data @collect `
     --exclude-module nvidia --distpath "$Root\dist" --workpath "$Root\build_pyi" --specpath "$Root\build_pyi" "$Root\quicksub.pyw"
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }

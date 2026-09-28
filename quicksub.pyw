@@ -9,10 +9,14 @@
 """
 import sys
 
-if __name__ == "__main__" and len(sys.argv) >= 3 and sys.argv[1] == "--worker":
-    # 背景程式：只做 AI 轉字幕，不開視窗
-    from qs.engine import run_worker
-    run_worker(int(sys.argv[2]))
+if __name__ == "__main__" and len(sys.argv) >= 3 and sys.argv[1] in ("--worker", "--live"):
+    # 背景程式：只做 AI 轉字幕（--live：即時字幕），不開視窗
+    if sys.argv[1] == "--worker":
+        from qs.engine import run_worker
+        run_worker(int(sys.argv[2]))
+    else:
+        from qs.live import run_live
+        run_live(int(sys.argv[2]))
     sys.exit(0)
 
 import json
@@ -73,6 +77,7 @@ class App:
         set_scale(root)
         setup_styles(root)
         self.rows = {}           # job.id -> Treeview 的列
+        self.live_panel = None
         self.jobs = {}
         self.update_info = None
         self.runner = pipeline.Runner(cfg, lambda job: self.q.put(("job", job)), lambda msg: self.q.put(("log", msg)))
@@ -92,6 +97,8 @@ class App:
         self.pump()
         threading.Thread(target=self.check_gpu, daemon=True).start()
         threading.Thread(target=self.check_update, daemon=True).start()
+        if os.environ.get("QUICKSUB_LIVE_FILE"):  # 測試用：打開就開始即時字幕（聲音從這個檔案來）
+            root.after(1500, lambda: (self.open_live(), self.live_panel.start()))
 
     # ------------------------------------------------------------------ 版面
     def build(self):
@@ -147,6 +154,8 @@ class App:
         FlatButton(btns, T("選檔案", "Choose files"), self.pick_files).pack(side="left")
         FlatButton(btns, T("選資料夾", "Choose a folder"), self.pick_folder, primary=False).pack(side="left", padx=(px(8), 0))
         FlatButton(btns, T("打開字幕檔來編輯", "Edit a subtitle file"), self.pick_subtitle, primary=False).pack(side="left", padx=(px(8), 0))
+        FlatButton(btns, T("● 即時字幕（線上影片、直播）", "● Live subtitles (streams, online video)"), self.open_live,
+                   primary=False).pack(side="left", padx=(px(8), 0))
         url = tk.Frame(box, bg=CARD)
         url.pack(fill="x", pady=(px(10), 0))
         tk.Label(url, text=T("或貼上影片網址：", "Or paste a video link:"), bg=CARD, fg=TEXT, font=(FONT, 10)).pack(side="left")
@@ -555,6 +564,14 @@ class App:
             job.video = None
         Editor(self, job, standalone_file=path)
 
+    def open_live(self):
+        if self.live_panel and self.live_panel.win.winfo_exists():
+            self.live_panel.win.deiconify()
+            self.live_panel.win.lift()
+            return
+        from qs.live import LivePanel
+        self.live_panel = LivePanel(self)
+
     # ------------------------------------------------------------------ 進階設定
     def show_advanced(self):
         c = self.cfg
@@ -731,6 +748,8 @@ class App:
         self.quit()
 
     def quit(self):
+        if self.live_panel:
+            self.live_panel.session.stop()
         for j in self.jobs.values():
             j.cancel.set()
         self.runner.worker.stop()

@@ -44,11 +44,14 @@ def ollama_models():
 def pick_ollama_model(models):
     """沒選的話，挑一個翻譯比較好的（有 qwen、gemma、llama 優先）。"""
     usable = [m for m in models if "embed" not in m.lower()]
-    for key in ("qwen", "gemma", "llama", "mistral"):
-        for m in usable:
-            if key in m.lower() and "-r1" not in m.lower():
-                return m
-    return next((m for m in usable if "-r1" not in m.lower()), usable[0] if usable else "")
+
+    def size(m):  # 名稱裡的參數量，例如 deepseek-r1:14b → 14（大的通常翻得比較好）
+        found = re.search(r":(\d+(?:\.\d+)?)b", m.lower())
+        return float(found.group(1)) if found else 0.0
+    # 大的優先；一樣大時 qwen、gemma、deepseek、llama 優先（中文比較好）。會思考的模型我們會叫它直接回答
+    rank = {"qwen": 0, "gemma": 1, "deepseek": 2, "llama": 3, "mistral": 4}
+    usable.sort(key=lambda m: (-size(m), next((v for k, v in rank.items() if k in m.lower()), 9)))
+    return usable[0] if usable else ""
 
 
 def engine_config(cfg):
@@ -74,8 +77,17 @@ def chat(eng, system, user, timeout=300):
     kind, base, key, model = eng
     msgs = [{"role": "system", "content": system}, {"role": "user", "content": user}]
     try:
+        raw = _raw_prompt(model, system, user) if kind == "ollama" else None
+        if raw:
+            # 會「思考」的模型就算設 think=false，還是會在背後想好幾百個字（每次要 5 秒）。
+            # 直接在提示最後放一段空的思考，它就會馬上回答（實測 deepseek-r1:14b 從 5 秒變 0.3 秒）
+            r = fetch_json(base + "/api/generate", data={"model": model, "prompt": raw, "raw": True, "stream": False,
+                                                         "keep_alive": "30m", "options": {"temperature": 0.2, "num_predict": 1500}},
+                           timeout=timeout)
+            return _strip_think(r.get("response", ""))
         if kind == "ollama":
-            body = {"model": model, "messages": msgs, "stream": False, "think": False, "options": {"temperature": 0.2}}
+            body = {"model": model, "messages": msgs, "stream": False, "think": False, "keep_alive": "30m",
+                    "options": {"temperature": 0.2}}
             try:
                 r = fetch_json(base + "/api/chat", data=body, timeout=timeout)
             except urllib.error.HTTPError as e:
@@ -96,6 +108,14 @@ def chat(eng, system, user, timeout=300):
         if e.code in (401, 403):
             raise ValueError(T("線上 AI 的金鑰不對或沒有權限", "The API key was rejected") + f"（{e.code}）")
         raise IOError(f"HTTP {e.code} {detail}")
+
+
+def _raw_prompt(model, system, user):
+    """deepseek-r1 自己組提示（照它的格式），最後放一段空的 <think></think>，讓它跳過思考直接回答。
+    （qwen3 的「只會思考」版本這招沒用，照常用 think=false）"""
+    if "deepseek-r1" in model.lower():
+        return f"{system}<｜User｜>{user}<｜Assistant｜><think>\n\n</think>\n\n"
+    return None
 
 
 def _strip_think(text):

@@ -182,6 +182,16 @@ def setup_dll_path():
 
 # ------------------------------------------------------------------ 背景程式（worker）那一邊
 
+def load_model(path, device):
+    """載入 Whisper 模型，選顯示卡／處理器支援的最快格式（舊顯示卡不支援 float16，舊處理器不支援 int8）。"""
+    import ctranslate2
+    from faster_whisper import WhisperModel
+    ok = ctranslate2.get_supported_compute_types(device)
+    wanted = ("float16", "int8_float16", "int8_float32", "float32") if device == "cuda" else ("int8", "int8_float32", "float32")
+    compute = next((t for t in wanted if t in ok), "default")
+    return WhisperModel(path, device=device, compute_type=compute, cpu_threads=os.cpu_count() or 4)
+
+
 def run_worker(port):
     """背景程式的主迴圈：收到一個工作就轉一個，模型留著給下一個用。"""
     setup_dll_path()
@@ -200,14 +210,7 @@ def run_worker(port):
             if k != key:
                 model = None
                 send(ev="status", what="load")
-                import ctranslate2
-                from faster_whisper import WhisperModel
-                # 選顯示卡／處理器支援的最快格式（舊顯示卡不支援 float16，舊處理器不支援 int8）
-                ok = ctranslate2.get_supported_compute_types(job["device"])
-                wanted = ("float16", "int8_float16", "int8_float32", "float32") if job["device"] == "cuda" else ("int8", "int8_float32", "float32")
-                compute = next((t for t in wanted if t in ok), "default")
-                model = WhisperModel(job["model_dir"], device=job["device"], compute_type=compute,
-                                     cpu_threads=os.cpu_count() or 4)
+                model = load_model(job["model_dir"], job["device"])
                 key = k
             send(ev="status", what="read")
             from faster_whisper.audio import decode_audio

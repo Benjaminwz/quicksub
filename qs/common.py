@@ -11,7 +11,7 @@ if IS_WINDOWS:
     import ctypes
 
 APP_ID = "Benjaminwz.QuickSub"
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.1.0"
 UPDATE_REPO = "Benjaminwz/quicksub"  # 到這個 GitHub 專案檢查新版；空字串 = 不檢查
 USER_AGENT = "QuickSub/" + APP_VERSION
 
@@ -88,6 +88,10 @@ DEFAULTS = {
     "vad": True,               # 先跳過沒有人聲的地方（比較不會亂加字）
     "beam": 5,
     "dl_dir": "",              # 網址下載的影片存哪裡；空 = 「影片／快字幕」
+    "live_source": "",         # 即時字幕聽哪個聲音（空 = 預設喇叭正在播的）
+    "live_font": 44,           # 即時字幕的字大小（像素）
+    "live_prev": False,        # 即時字幕也顯示上一句
+    "live_pos": None,          # 即時字幕列的位置 [x, y]；None = 螢幕下方正中間
 }
 
 
@@ -104,8 +108,8 @@ class Config:
         except (OSError, ValueError):
             pass
 
-    def get(self, key):
-        return self.data.get(key, DEFAULTS.get(key))
+    def get(self, key, default=None):
+        return self.data.get(key, DEFAULTS.get(key, default))
 
     def set(self, key, value):
         self.data[key] = value
