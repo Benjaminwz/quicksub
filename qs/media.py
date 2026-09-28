@@ -21,7 +21,7 @@ DENO_URL = "https://github.com/denoland/deno/releases/latest/download/deno-x86_6
 MEDIA_EXT = {".mp4", ".mkv", ".mov", ".avi", ".wmv", ".flv", ".webm", ".m4v", ".ts", ".mts", ".m2ts", ".mpg", ".mpeg",
              ".3gp", ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wma", ".aiff", ".amr"}
 AUDIO_EXT = {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wma", ".aiff", ".amr"}
-LANG3 = {"zh": "chi", "yue": "chi", "en": "eng", "ja": "jpn", "ko": "kor", "fr": "fre", "de": "ger", "es": "spa",
+LANG3 = {"zh": "chi", "zh-TW": "chi", "zh-CN": "chi", "yue": "chi", "en": "eng", "ja": "jpn", "ko": "kor", "fr": "fre", "de": "ger", "es": "spa",
          "it": "ita", "pt": "por", "ru": "rus", "th": "tha", "vi": "vie", "id": "ind"}
 
 
@@ -142,7 +142,8 @@ def out_path(src, out_dir, suffix, ext):
 
 
 def burn(video, ass_text, dest, duration, progress=None, cancel=None):
-    """把字幕燒進畫面（重新編碼；有 NVIDIA 顯示卡就用顯示卡編碼，快很多）。"""
+    """把字幕燒進畫面（重新編碼；有 NVIDIA 顯示卡就用顯示卡編碼，快很多）。
+    NVENC 用 p2：實測 4K60 比 p5 快 3 倍（250 vs 79 fps），檔案大小和畫質幾乎一樣。"""
     ffmpeg, _ = ensure_ffmpeg()
     tmp = tempfile.mkdtemp(prefix="quicksub-")
     try:
@@ -151,8 +152,8 @@ def burn(video, ass_text, dest, duration, progress=None, cancel=None):
             f.write(ass_text)
         encoders = []
         if has_nvenc(ffmpeg):
-            encoders.append(["-c:v", "h264_nvenc", "-preset", "p5", "-cq", "21", "-b:v", "0"])
-        encoders.append(["-c:v", "libx264", "-preset", "medium", "-crf", "20"])
+            encoders.append(["-c:v", "h264_nvenc", "-preset", "p2", "-cq", "22", "-b:v", "0"])
+        encoders.append(["-c:v", "libx264", "-preset", "veryfast", "-crf", "21"])
         last = None
         for venc in encoders:
             for aenc in (["-c:a", "copy"], ["-c:a", "aac", "-b:a", "192k"]):
@@ -225,8 +226,8 @@ def open_player(video, sub):
     """用播放器預覽：有 VLC 就指定字幕檔；沒有就用系統預設的播放器（同檔名的字幕大多會自動載入）。"""
     vlc = shutil.which("vlc") or next((p for p in (r"C:\Program Files\VideoLAN\VLC\vlc.exe",
                                                    r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe") if os.path.exists(p)), None)
-    if vlc and video:
-        subprocess.Popen([vlc, video, "--sub-file=" + sub], creationflags=NO_WINDOW)
+    if vlc and video:  # --no-video-title-show：VLC 預設開頭會在下面顯示檔名，看起來像一行字幕
+        subprocess.Popen([vlc, "--no-video-title-show", video, "--sub-file=" + sub], creationflags=NO_WINDOW)
     elif video and IS_WINDOWS:
         os.startfile(video)
     elif IS_WINDOWS:

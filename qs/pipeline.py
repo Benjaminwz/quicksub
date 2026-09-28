@@ -187,9 +187,17 @@ class Runner:
         self.save_subs(job, tag)
         self.video_step(job, duration)
 
+    def video_dir(self, job):
+        """燒好字幕、加了字幕軌的影片放在「字幕影片」子資料夾：旁邊沒有字幕檔，播放器才不會再自動疊一層字幕上去
+        （VLC 比對檔名時會忽略中文，「影片.燒字幕.mp4」會被當成「影片.zh-TW.srt」的同名影片）。"""
+        d = os.path.join(self.out_dir(job), T("字幕影片", "Subtitled videos"))
+        os.makedirs(d, exist_ok=True)
+        return d
+
     def video_step(self, job, duration):
         """燒進影片、放字幕軌。"""
-        c, lang = job.cfg, job.lang
+        c = job.cfg
+        lang = (c.get("translate") or job.lang) if job.layout != "orig" else job.lang  # 字幕軌標成畫面上主要的語言
         if job.video and (c.get("burn") or c.get("embed")):
             self.set(job, T("準備 ffmpeg…", "Getting ffmpeg…"))
             media.ensure_ffmpeg(self.dl_progress(job, T("下載 ffmpeg（只有第一次）", "Downloading ffmpeg (first time only)")), job.cancel)
@@ -198,12 +206,12 @@ class Runner:
         if job.video and c.get("embed"):
             srt = job.files.get("srt") or self.write_temp_srt(job)
             ext = os.path.splitext(job.video)[1].lower()
-            dest = media.out_path(job.video, self.out_dir(job), T(".字幕軌", ".softsub"), ext if ext in (".mp4", ".m4v", ".mov", ".mkv") else ".mkv")
+            dest = media.out_path(job.video, self.video_dir(job), T(".字幕軌", ".softsub"), ext if ext in (".mp4", ".m4v", ".mov", ".mkv") else ".mkv")
             media.embed(job.video, srt, dest, lang, duration, self.ff_progress(job, T("放進字幕軌", "Adding subtitle track"), duration), job.cancel)
             job.files["embed"] = dest
         if job.video and c.get("burn"):
             ass = subs.to_ass(job.segs, job.layout, job.size[0], job.size[1], int(c.get("font_size") or 0))
-            dest = media.out_path(job.video, self.out_dir(job), T(".燒字幕", ".hardsub"), ".mp4")
+            dest = media.out_path(job.video, self.video_dir(job), T(".燒字幕", ".hardsub"), ".mp4")
             media.burn(job.video, ass, dest, duration, self.ff_progress(job, T("燒進影片", "Burning into video"), duration), job.cancel)
             job.files["burn"] = dest
 

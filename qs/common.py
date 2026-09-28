@@ -11,7 +11,7 @@ if IS_WINDOWS:
     import ctypes
 
 APP_ID = "Benjaminwz.QuickSub"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 UPDATE_REPO = "Benjaminwz/quicksub"  # 到這個 GitHub 專案檢查新版；空字串 = 不檢查
 USER_AGENT = "QuickSub/" + APP_VERSION
 
