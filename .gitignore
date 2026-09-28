@@ -1,0 +1,6 @@
+# build output
+dist/
+build_pyi/
+__pycache__/
+.venv/
+*.pyc
