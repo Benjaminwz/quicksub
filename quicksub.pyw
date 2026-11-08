@@ -619,13 +619,13 @@ class App:
             _name, base, model = translate.PRESETS.get(preset.get(), translate.PRESETS["custom"])
             same = first and preset.get() == c.get("api_preset")
             model_e.delete(0, "end")
-            model_e.insert(0, c.get("api_model") if same and c.get("api_model") else model)
+            # 以前存的是已經停用的預設模型（例如 deepseek-chat）就顯示新的
+            model_e.insert(0, translate.upgrade_model(c.get("api_model")) if same and c.get("api_model") else model)
             base_e.delete(0, "end")
-            base_e.insert(0, c.get("api_base") if same and c.get("api_base") else base)
+            base_e.insert(0, translate.upgrade_base(c.get("api_base")) if same and c.get("api_base") else base)
         preset.on_change = fill_preset
         fill_preset(first=True)
-        keys = {"gemini": "https://aistudio.google.com/apikey", "deepseek": "https://platform.deepseek.com/api_keys",
-                "openai": "https://platform.openai.com/api-keys"}
+        keys = translate.KEY_PAGES
         links = tk.Frame(box, bg=CARD)
         links.pack(fill="x", padx=(px(24), 0), pady=(px(2), 0))
         get_key = tk.Label(links, text=T("怎麼拿金鑰？", "Get a key"), bg=CARD, fg=ACCENT, font=(FONT, 9, "underline"), cursor="hand2")
