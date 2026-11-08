@@ -73,6 +73,25 @@
 
 按「測試翻譯」可以先確定能不能用。
 
+## 給 AI 工具用（指令模式和 skill）
+
+快字幕可以當成 Claude Code、Codex 這類 AI 工具的「字幕工具」：AI 叫快字幕把影片轉成有時間的逐字稿，
+用它自己的語言模型翻譯、修稿或摘要，再叫快字幕燒回影片。
+
+- **指令模式：** 安裝資料夾裡的 `quicksub-cli.exe`（預設在 `%LOCALAPPDATA%\Programs\QuickSub`）。不開視窗，結果是一行 JSON。
+  ```bash
+  quicksub-cli info                                     # 顯示卡、模型、翻譯服務的狀態
+  quicksub-cli transcribe 影片.mp4 --segments           # 轉字幕，每一句和時間都在 JSON 裡
+  quicksub-cli transcribe 影片.mp4 -t zh-TW --burn      # 轉字幕、翻成繁中、燒進影片
+  quicksub-cli burn 影片.mp4 影片.zh-TW.srt             # 把（AI 改好的）字幕燒進影片
+  ```
+  用原始碼的話是 `python quicksub.pyw --cli …`。完整的選項看 `quicksub-cli transcribe --help`。
+- **Skill：** [`skills/quicksub/SKILL.md`](skills/quicksub/SKILL.md) 教 AI 怎麼用上面這些指令。
+  Claude Code 的話，把 `skills/quicksub` 整個資料夾複製到 `%USERPROFILE%\.claude\skills\`，之後跟它說「幫這部影片上字幕」就會自己用。
+  其他支援 Agent Skills 格式的工具也一樣放進它們的 skills 資料夾。
+
+指令模式會沿用視窗版設定好的 AI 模型和翻譯服務，但不會改到你的設定。
+
 ## 常見問題
 
 - **準不準？** 用最推薦的模型，清楚的說話聲大多很準。背景音樂很大、很多人同時說話、口音很重時會差一點。人名、術語填在「專有名詞」會好很多，剩下的用編輯器修就好。
@@ -107,6 +126,7 @@ powershell -ExecutionPolicy Bypass -File build_release.ps1 -Version 1.0.0
 - `qs/media.py`：ffmpeg、yt-dlp。
 - `qs/pipeline.py`：一個工作從頭到尾的流程。
 - `qs/editor.py`：字幕編輯器。
+- `qs/cli.py`：指令模式（`--cli`）；`tools/quicksub-cli.cs` 是安裝版用的指令列入口。
 
 ## 用到的開源專案
 
@@ -140,6 +160,8 @@ ffmpeg、yt-dlp、Deno 和 AI 模型不包在安裝檔裡，第一次需要時�
 **Install:** download `QuickSub-Setup-x.x.x.exe` (or the portable zip) from [Releases](https://github.com/Benjaminwz/quicksub/releases/latest). The AI model (1.6 GB), NVIDIA GPU libraries (1.3 GB), ffmpeg and yt-dlp download automatically the first time they're needed. They're stored in `%LOCALAPPDATA%\QuickSub`.
 
 **Translation:** pick a target language, then choose a service in *More settings*: Ollama (install it and `ollama pull qwen2.5:7b`) or an online AI with your API key. The key stays on your PC.
+
+**For AI agents and scripts:** `quicksub-cli.exe` (next to `QuickSub.exe`) runs without a window and prints one JSON object: `info`, `transcribe <video|URL> --segments [-t LANG] [--burn|--embed]`, `burn <video> <subs.srt>`, `embed <video> <subs.srt>`. From source: `python quicksub.pyw --cli …`. The agent skill in [`skills/quicksub`](skills/quicksub/SKILL.md) teaches Claude Code (copy it to `~/.claude/skills/`) and other Agent Skills–compatible tools to transcribe with QuickSub, translate or edit the text with their own model, and burn the result back in.
 
 **Privacy:** transcription never leaves your computer. Only when you choose an online AI for translation is the subtitle text (not the video) sent to that service.
 

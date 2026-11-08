@@ -22,6 +22,11 @@ $collect = @("faster_whisper", "ctranslate2", "onnxruntime", "av", "tokenizers",
     --exclude-module nvidia --distpath "$Root\dist" --workpath "$Root\build_pyi" --specpath "$Root\build_pyi" "$Root\quicksub.pyw"
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
 
+Write-Host "== quicksub-cli.exe (command-line entry for scripts / AI agents)"
+$csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+& $csc /nologo /codepage:65001 /target:exe "/win32icon:$Root\icon.ico" "/out:$Root\dist\QuickSub\quicksub-cli.exe" "$Root\tools\quicksub-cli.cs"
+if ($LASTEXITCODE -ne 0) { throw "csc failed" }
+
 Write-Host "== portable zip"
 $zip = "$Root\dist\QuickSub-$Version-portable.zip"
 if (Test-Path $zip) { Remove-Item $zip }

@@ -19,6 +19,11 @@ if __name__ == "__main__" and len(sys.argv) >= 3 and sys.argv[1] in ("--worker",
         run_live(int(sys.argv[2]))
     sys.exit(0)
 
+if __name__ == "__main__" and len(sys.argv) >= 2 and sys.argv[1] == "--cli":
+    # 指令模式（給其他程式、AI 工作流）：不開視窗，結果用 JSON 回傳。說明在 qs/cli.py
+    from qs.cli import run_cli
+    sys.exit(run_cli(sys.argv[2:]))
+
 import json
 import os
 import queue
